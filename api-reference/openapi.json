@@ -1,94 +1,378 @@
 {
-  "openapi": "3.1.0",
+  "openapi": "3.0.3",
   "info": {
-    "title": "OpenAPI Plant Store",
-    "description": "A sample API that uses a plant store as an example to demonstrate features in the OpenAPI specification",
-    "license": {
-      "name": "MIT"
+    "title": "Uplint API",
+    "version": "0.1.0",
+    "description": "Uplint is a file safety and integrity platform. Upload files through context-aware pipelines that automatically validate integrity, detect blank or placeholder content, and scan for viruses \u2014 all behind a single API.\n\nThis specification covers the core Uplint REST API:\n\n- **API Keys** \u2014 Create and manage scoped API keys for programmatic access.\n- **File Contexts** \u2014 Define upload pipelines with per-context rules (allowed extensions, size limits, blank/corrupt rejection, virus scanning, rate limits, and storage quotas).\n- **Files** \u2014 Upload, list, download, inspect, and delete files. Every upload runs through the validation pipeline configured on its context.\n\nAll endpoints are tenant-scoped. Authenticate with an API key or JWT token via the `Authorization` header.",
+    "contact": {
+      "name": "Uplint Team",
+      "url": "https://uplint.dev"
     },
-    "version": "1.0.0"
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
   },
   "servers": [
     {
-      "url": "http://sandbox.mintlify.com"
+      "url": "https://api.uplint.dev",
+      "description": "Production"
+    },
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development"
+    }
+  ],
+  "tags": [
+    {
+      "name": "API Keys",
+      "description": "Create, list, inspect, update, and revoke API keys. Each key carries scoped permissions (`upload`, `download`, `metadata`, `delete`, `admin`) and is bound to the authenticated tenant."
+    },
+    {
+      "name": "File Contexts",
+      "description": "File contexts define upload pipelines. Each context specifies allowed extensions, max file size, whether to reject blank or corrupt files, virus scanning, rate limits, and storage quotas. Files are always uploaded into a context."
+    },
+    {
+      "name": "Files",
+      "description": "Upload, list, download, inspect metadata, and delete files. Every upload is validated against its context rules before storage."
     }
   ],
   "security": [
     {
-      "bearerAuth": []
+      "BearerAuth": []
     }
   ],
   "paths": {
-    "/plants": {
+    "/api/v1/api-keys": {
+      "post": {
+        "operationId": "createApiKey",
+        "summary": "Create API key",
+        "description": "Create a new API key for the current tenant. The full key value is returned **only once** in the response \u2014 store it securely.",
+        "tags": [
+          "API Keys"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAPIKeyRequest"
+              },
+              "example": {
+                "name": "Backend Service",
+                "scopes": [
+                  "upload",
+                  "download",
+                  "metadata"
+                ],
+                "expires_in_days": 90
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "API key created. The `api_key` field contains the full key \u2014 it will not be shown again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_APIKeyCreated"
+                },
+                "example": {
+                  "status": "SUCCESS",
+                  "message": "API key created",
+                  "data": {
+                    "api_key_id": "6612f1a2c3b4d5e6f7890123",
+                    "api_key": "ul_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+                    "name": "Backend Service",
+                    "scopes": [
+                      "upload",
+                      "download",
+                      "metadata"
+                    ],
+                    "expires_at": "2026-05-11T00:00:00Z"
+                  },
+                  "timestamp": "2026-02-10T12:00:00Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
       "get": {
-        "description": "Returns all plants from the system that the user has access to",
+        "operationId": "listApiKeys",
+        "summary": "List API keys",
+        "description": "List all API keys for the current tenant with pagination. The full key value is never returned \u2014 only the prefix is shown.",
+        "tags": [
+          "API Keys"
+        ],
         "parameters": [
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "The maximum number of results to return",
             "schema": {
               "type": "integer",
-              "format": "int32"
-            }
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number."
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Items per page."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/APIKeyStatus"
+            },
+            "description": "Filter by key status."
           }
         ],
         "responses": {
           "200": {
-            "description": "Plant response",
+            "description": "Paginated list of API keys.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Plant"
-                  }
+                  "$ref": "#/components/schemas/SuccessResponse_APIKeyList"
                 }
               }
             }
           },
-          "400": {
-            "description": "Unexpected error",
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/api-keys/simple": {
+      "get": {
+        "operationId": "listApiKeysSimple",
+        "summary": "List API keys (simple)",
+        "description": "Lightweight list of all API keys for the current tenant. Returns only the key ID, name, and status \u2014 useful for dropdowns or quick lookups.",
+        "tags": [
+          "API Keys"
+        ],
+        "responses": {
+          "200": {
+            "description": "Simple list of API keys.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/SuccessResponse_APIKeySimpleList"
+                },
+                "example": {
+                  "status": "SUCCESS",
+                  "message": "API keys retrieved",
+                  "data": [
+                    {
+                      "api_key_id": "6612f1a2c3b4d5e6f7890123",
+                      "name": "Backend Service",
+                      "status": "active"
+                    },
+                    {
+                      "api_key_id": "6612f1a2c3b4d5e6f7890456",
+                      "name": "Mobile App",
+                      "status": "active"
+                    }
+                  ],
+                  "timestamp": "2026-02-10T12:00:00Z"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/api-keys/{api_key_id}": {
+      "get": {
+        "operationId": "getApiKey",
+        "summary": "Get API key details",
+        "description": "Retrieve full details for a single API key. The full key value is never returned.",
+        "tags": [
+          "API Keys"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiKeyId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_APIKeyDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       },
-      "post": {
-        "description": "Creates a new plant in the store",
+      "patch": {
+        "operationId": "updateApiKey",
+        "summary": "Update API key",
+        "description": "Update the name, scopes, status, or metadata of an existing API key.",
+        "tags": [
+          "API Keys"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiKeyId"
+          }
+        ],
         "requestBody": {
-          "description": "Plant to add to the store",
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NewPlant"
+                "$ref": "#/components/schemas/UpdateAPIKeyRequest"
+              },
+              "example": {
+                "name": "Backend Service v2",
+                "scopes": [
+                  "upload",
+                  "download",
+                  "metadata",
+                  "delete"
+                ]
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
-            "description": "plant response",
+            "description": "API key updated.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Plant"
+                  "$ref": "#/components/schemas/SuccessResponse_APIKeyDetail"
                 }
               }
             }
           },
-          "400": {
-            "description": "unexpected error",
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "revokeApiKey",
+        "summary": "Revoke API key",
+        "description": "Permanently revoke an API key. This action is **irreversible** \u2014 the key can never be re-enabled.",
+        "tags": [
+          "API Keys"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiKeyId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key revoked.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/SuccessResponse_APIKeyStatusChange"
+                },
+                "example": {
+                  "status": "SUCCESS",
+                  "message": "API key revoked",
+                  "data": {
+                    "api_key_id": "6612f1a2c3b4d5e6f7890123",
+                    "status": "revoked"
+                  },
+                  "timestamp": "2026-02-10T12:00:00Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/api-keys/{api_key_id}/enable": {
+      "post": {
+        "operationId": "enableApiKey",
+        "summary": "Enable API key",
+        "description": "Re-enable a disabled API key. Revoked keys cannot be enabled.",
+        "tags": [
+          "API Keys"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ApiKeyId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key enabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_APIKeyStatusChange"
+                },
+                "example": {
+                  "status": "SUCCESS",
+                  "message": "API key enabled",
+                  "data": {
+                    "api_key_id": "6612f1a2c3b4d5e6f7890123",
+                    "status": "active"
+                  },
+                  "timestamp": "2026-02-10T12:00:00Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Key is revoked and cannot be re-enabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -96,121 +380,1629 @@
         }
       }
     },
-    "/plants/{id}": {
-      "delete": {
-        "description": "Deletes a single plant based on the ID supplied",
+    "/api/v1/api-keys/{api_key_id}/disable": {
+      "post": {
+        "operationId": "disableApiKey",
+        "summary": "Disable API key",
+        "description": "Temporarily disable an API key. Disabled keys can be re-enabled later.",
+        "tags": [
+          "API Keys"
+        ],
         "parameters": [
           {
-            "name": "id",
-            "in": "path",
-            "description": "ID of plant to delete",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
+            "$ref": "#/components/parameters/ApiKeyId"
           }
         ],
         "responses": {
-          "204": {
-            "description": "Plant deleted",
-            "content": {}
-          },
-          "400": {
-            "description": "unexpected error",
+          "200": {
+            "description": "API key disabled.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/SuccessResponse_APIKeyStatusChange"
+                },
+                "example": {
+                  "status": "SUCCESS",
+                  "message": "API key disabled",
+                  "data": {
+                    "api_key_id": "6612f1a2c3b4d5e6f7890123",
+                    "status": "disabled"
+                  },
+                  "timestamp": "2026-02-10T12:00:00Z"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
-    }
-  },
-  "webhooks": {
-    "/plant/webhook": {
+    },
+    "/api/v1/contexts": {
       "post": {
-        "description": "Information about a new plant added to the store",
+        "operationId": "createFileContext",
+        "summary": "Create file context",
+        "description": "Create a new file context (upload pipeline). Contexts define the rules applied to every file uploaded under them \u2014 allowed extensions, size limits, blank/corrupt rejection, virus scanning, rate limits, and storage quotas.",
+        "tags": [
+          "File Contexts"
+        ],
         "requestBody": {
-          "description": "Plant added to the store",
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NewPlant"
+                "$ref": "#/components/schemas/CreateContextRequest"
+              },
+              "example": {
+                "context_key": "patient_reports",
+                "display_name": "Patient Reports",
+                "description": "Medical reports uploaded by patients",
+                "allowed_extensions": [
+                  "pdf",
+                  "png",
+                  "jpg",
+                  "jpeg"
+                ],
+                "max_file_size_mb": 25,
+                "reject_blank_files": true,
+                "reject_corrupt_files": true,
+                "scan_for_viruses": true,
+                "upload_rate_limit": {
+                  "max_uploads": 100,
+                  "window_seconds": 60
+                },
+                "storage_quota_mb": 10240
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "File context created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_Context"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "description": "A context with this `context_key` already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "listFileContexts",
+        "summary": "List file contexts",
+        "description": "List all file contexts for the current tenant with pagination.",
+        "tags": [
+          "File Contexts"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number."
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Items per page."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/FileContextStatus"
+            },
+            "description": "Filter by context status."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of file contexts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ContextList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/contexts/{context_key}": {
+      "get": {
+        "operationId": "getFileContext",
+        "summary": "Get file context",
+        "description": "Retrieve full details for a single file context by its key.",
+        "tags": [
+          "File Contexts"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ContextKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File context details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_Context"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateFileContext",
+        "summary": "Update file context",
+        "description": "Update an existing file context. The `context_key` cannot be changed after creation. Send only the fields you want to update.",
+        "tags": [
+          "File Contexts"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ContextKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateContextRequest"
+              },
+              "example": {
+                "max_file_size_mb": 50,
+                "allowed_extensions": [
+                  "pdf",
+                  "png",
+                  "jpg",
+                  "jpeg",
+                  "docx"
+                ]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Return a 200 status to indicate that the data was received successfully"
+            "description": "File context updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_Context"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/files/upload": {
+      "post": {
+        "operationId": "uploadFile",
+        "summary": "Upload file",
+        "description": "Upload a file into a context. The file is validated against the context's rules (allowed extensions, max size, blank/corrupt rejection, virus scanning) before being stored. If any check fails, the upload is rejected and the reason is returned.",
+        "tags": [
+          "Files"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "context"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The file to upload."
+                  },
+                  "context": {
+                    "type": "string",
+                    "description": "The context key to upload into (e.g. `patient_reports`)."
+                  },
+                  "metadata": {
+                    "type": "string",
+                    "description": "Optional JSON object string with custom metadata (max 4 KB).",
+                    "example": "{\"department\": \"radiology\", \"patient_id\": \"P-12345\"}"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "File uploaded and validated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_FileUpload"
+                },
+                "example": {
+                  "status": "SUCCESS",
+                  "message": "File uploaded",
+                  "data": {
+                    "file_id": "6612f1a2c3b4d5e6f7890abc",
+                    "original_filename": "report.pdf",
+                    "content_type": "application/pdf",
+                    "size_bytes": 843776,
+                    "context_key": "patient_reports",
+                    "metadata": {
+                      "department": "radiology",
+                      "patient_id": "P-12345"
+                    }
+                  },
+                  "timestamp": "2026-02-10T12:00:00Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Upload rejected \u2014 file failed validation (blank, corrupt, virus, wrong extension, oversized, quota exceeded).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "description": "Context not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded for this context or tenant.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files": {
+      "get": {
+        "operationId": "listFiles",
+        "summary": "List files",
+        "description": "List uploaded files for the current tenant with pagination. Optionally filter by context or uploader.",
+        "tags": [
+          "Files"
+        ],
+        "parameters": [
+          {
+            "name": "context",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by context key."
+          },
+          {
+            "name": "uploaded_by",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by API key ID or user ID."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "Page number."
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "Items per page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of files.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_FileList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/files/{file_id}": {
+      "get": {
+        "operationId": "getFileDownloadUrl",
+        "summary": "Get download URL",
+        "description": "Generate a pre-signed download URL for a file. The URL expires after the specified duration.",
+        "tags": [
+          "Files"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FileId"
+          },
+          {
+            "name": "expires_in",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 60,
+              "maximum": 3600,
+              "default": 300
+            },
+            "description": "URL expiration time in seconds."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pre-signed download URL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_FileDownload"
+                },
+                "example": {
+                  "status": "SUCCESS",
+                  "message": "Download URL generated",
+                  "data": {
+                    "file_id": "6612f1a2c3b4d5e6f7890abc",
+                    "download_url": "https://s3.amazonaws.com/bucket/path/to/file?X-Amz-Signature=...",
+                    "expires_in_seconds": 300,
+                    "original_filename": "report.pdf",
+                    "content_type": "application/pdf"
+                  },
+                  "timestamp": "2026-02-10T12:00:00Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteFile",
+        "summary": "Delete file",
+        "description": "Soft-delete a file. The file metadata is marked as deleted; the underlying storage object is not immediately removed.",
+        "tags": [
+          "Files"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FileId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_FileDelete"
+                },
+                "example": {
+                  "status": "SUCCESS",
+                  "message": "File deleted",
+                  "data": {
+                    "file_id": "6612f1a2c3b4d5e6f7890abc",
+                    "deleted": true
+                  },
+                  "timestamp": "2026-02-10T12:00:00Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/files/{file_id}/metadata": {
+      "get": {
+        "operationId": "getFileMetadata",
+        "summary": "Get file metadata",
+        "description": "Retrieve metadata for a single file including checksum, download count, and custom metadata.",
+        "tags": [
+          "Files"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FileId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_FileMetadata"
+                },
+                "example": {
+                  "status": "SUCCESS",
+                  "message": "File metadata retrieved",
+                  "data": {
+                    "file_id": "6612f1a2c3b4d5e6f7890abc",
+                    "original_filename": "report.pdf",
+                    "content_type": "application/pdf",
+                    "size_bytes": 843776,
+                    "context_key": "patient_reports",
+                    "checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    "metadata": {
+                      "department": "radiology"
+                    },
+                    "download_count": 3,
+                    "last_downloaded_at": "2026-02-10T10:30:00Z"
+                  },
+                  "timestamp": "2026-02-10T12:00:00Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
     }
   },
   "components": {
-    "schemas": {
-      "Plant": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "description": "The name of the plant",
-            "type": "string"
-          },
-          "tag": {
-            "description": "Tag to specify the type",
-            "type": "string"
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Pass an API key or JWT token. API keys can be sent as `Authorization: Bearer <key>` or `Authorization: <key>`."
+      }
+    },
+    "parameters": {
+      "ApiKeyId": {
+        "name": "api_key_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "The API key's unique identifier."
+      },
+      "ContextKey": {
+        "name": "context_key",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "The file context's unique key (e.g. `patient_reports`)."
+      },
+      "FileId": {
+        "name": "file_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "The file's unique identifier."
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing, invalid, or expired authentication credentials.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "ERROR",
+              "message": "Invalid or missing API key",
+              "errors": [
+                "Authentication required"
+              ],
+              "timestamp": "2026-02-10T12:00:00Z"
+            }
           }
         }
       },
-      "NewPlant": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Plant"
-          },
-          {
-            "required": [
-              "id"
-            ],
-            "type": "object",
-            "properties": {
-              "id": {
-                "description": "Identification number of the plant",
-                "type": "integer",
-                "format": "int64"
-              }
+      "NotFound": {
+        "description": "The requested resource does not exist.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "ERROR",
+              "message": "Resource not found",
+              "errors": [
+                "Not found"
+              ],
+              "timestamp": "2026-02-10T12:00:00Z"
             }
           }
-        ]
+        }
       },
-      "Error": {
-        "required": [
-          "error",
-          "message"
-        ],
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "message": {
-            "type": "string"
+      "ValidationError": {
+        "description": "Request body failed validation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "ERROR",
+              "message": "Validation error",
+              "errors": [
+                "name: field required"
+              ],
+              "timestamp": "2026-02-10T12:00:00Z"
+            }
           }
         }
       }
     },
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer"
+    "schemas": {
+      "APIKeyScope": {
+        "type": "string",
+        "enum": [
+          "upload",
+          "download",
+          "metadata",
+          "delete",
+          "admin"
+        ],
+        "description": "Permission scope for an API key. `admin` grants all permissions."
+      },
+      "APIKeyStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "disabled",
+          "revoked"
+        ]
+      },
+      "FileContextStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "inactive"
+        ]
+      },
+      "CreateAPIKeyRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "A human-readable name for the key."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/APIKeyScope"
+            },
+            "default": [
+              "upload",
+              "download"
+            ],
+            "description": "Permissions granted to this key."
+          },
+          "expires_in_days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365,
+            "nullable": true,
+            "description": "Days until the key expires. Omit or pass `null` for no expiry."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true,
+            "description": "Arbitrary key-value metadata."
+          }
+        }
+      },
+      "UpdateAPIKeyRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/APIKeyScope"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/APIKeyStatus"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        }
+      },
+      "APIKeyCreatedResponse": {
+        "type": "object",
+        "properties": {
+          "api_key_id": {
+            "type": "string"
+          },
+          "api_key": {
+            "type": "string",
+            "description": "The full API key. Shown only once."
+          },
+          "name": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/APIKeyScope"
+            }
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "APIKeyDetailResponse": {
+        "type": "object",
+        "properties": {
+          "api_key_id": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "key_prefix": {
+            "type": "string",
+            "description": "First characters of the key for identification."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/APIKeyScope"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/APIKeyStatus"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "APIKeyListItemResponse": {
+        "type": "object",
+        "properties": {
+          "api_key_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "key_prefix": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/APIKeyScope"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/APIKeyStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "APIKeySimpleResponse": {
+        "type": "object",
+        "properties": {
+          "api_key_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/APIKeyStatus"
+          }
+        }
+      },
+      "APIKeyStatusChangeResponse": {
+        "type": "object",
+        "properties": {
+          "api_key_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "UploadRateLimitConfig": {
+        "type": "object",
+        "required": [
+          "max_uploads",
+          "window_seconds"
+        ],
+        "properties": {
+          "max_uploads": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "description": "Maximum number of uploads allowed within the time window."
+          },
+          "window_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3600,
+            "description": "Time window in seconds."
+          }
+        }
+      },
+      "CreateContextRequest": {
+        "type": "object",
+        "required": [
+          "context_key",
+          "display_name"
+        ],
+        "properties": {
+          "context_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "description": "Unique, immutable identifier in snake_case."
+          },
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "Human-readable name."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "allowed_extensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "description": "Allowed file extensions (e.g. `[\"pdf\", \"png\"]`). Empty array allows all."
+          },
+          "max_file_size_mb": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "default": 10,
+            "description": "Maximum file size in megabytes."
+          },
+          "storage_path_template": {
+            "type": "string",
+            "maxLength": 500,
+            "nullable": true,
+            "description": "Custom S3 path template for uploaded files."
+          },
+          "reject_blank_files": {
+            "type": "boolean",
+            "default": true,
+            "description": "Reject files detected as blank or placeholder content."
+          },
+          "reject_corrupt_files": {
+            "type": "boolean",
+            "default": true,
+            "description": "Reject files that fail integrity checks."
+          },
+          "scan_for_viruses": {
+            "type": "boolean",
+            "default": true,
+            "description": "Scan files for malware using ClamAV."
+          },
+          "upload_rate_limit": {
+            "nullable": true,
+            "description": "Optional per-context upload rate limit.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UploadRateLimitConfig"
+              }
+            ]
+          },
+          "storage_quota_mb": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10485760,
+            "nullable": true,
+            "description": "Storage quota in MB. `null` means unlimited."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        }
+      },
+      "UpdateContextRequest": {
+        "type": "object",
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "allowed_extensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "max_file_size_mb": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "storage_path_template": {
+            "type": "string",
+            "maxLength": 500,
+            "nullable": true
+          },
+          "reject_blank_files": {
+            "type": "boolean"
+          },
+          "reject_corrupt_files": {
+            "type": "boolean"
+          },
+          "scan_for_viruses": {
+            "type": "boolean"
+          },
+          "upload_rate_limit": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UploadRateLimitConfig"
+              }
+            ]
+          },
+          "storage_quota_mb": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10485760,
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/FileContextStatus"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
+          }
+        }
+      },
+      "ContextResponse": {
+        "type": "object",
+        "properties": {
+          "context_id": {
+            "type": "string"
+          },
+          "context_key": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "allowed_extensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "max_file_size_mb": {
+            "type": "integer"
+          },
+          "storage_path_template": {
+            "type": "string"
+          },
+          "reject_blank_files": {
+            "type": "boolean"
+          },
+          "reject_corrupt_files": {
+            "type": "boolean"
+          },
+          "scan_for_viruses": {
+            "type": "boolean"
+          },
+          "upload_rate_limit": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UploadRateLimitConfig"
+              }
+            ]
+          },
+          "storage_quota_mb": {
+            "type": "integer",
+            "nullable": true
+          },
+          "storage_used_bytes": {
+            "type": "integer",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/FileContextStatus"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ContextListItemResponse": {
+        "type": "object",
+        "properties": {
+          "context_id": {
+            "type": "string"
+          },
+          "context_key": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/FileContextStatus"
+          },
+          "allowed_extensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "max_file_size_mb": {
+            "type": "integer"
+          },
+          "reject_blank_files": {
+            "type": "boolean"
+          },
+          "reject_corrupt_files": {
+            "type": "boolean"
+          },
+          "scan_for_viruses": {
+            "type": "boolean"
+          },
+          "upload_rate_limit": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UploadRateLimitConfig"
+              }
+            ]
+          },
+          "storage_quota_mb": {
+            "type": "integer",
+            "nullable": true
+          },
+          "storage_used_bytes": {
+            "type": "integer",
+            "nullable": true
+          }
+        }
+      },
+      "FileUploadResponse": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          },
+          "original_filename": {
+            "type": "string"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer"
+          },
+          "context_key": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "FileDownloadResponse": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          },
+          "download_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Pre-signed S3 download URL."
+          },
+          "expires_in_seconds": {
+            "type": "integer"
+          },
+          "original_filename": {
+            "type": "string"
+          },
+          "content_type": {
+            "type": "string"
+          }
+        }
+      },
+      "FileMetadataResponse": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          },
+          "original_filename": {
+            "type": "string"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer"
+          },
+          "context_key": {
+            "type": "string"
+          },
+          "checksum": {
+            "type": "string",
+            "description": "SHA-256 checksum."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "download_count": {
+            "type": "integer",
+            "default": 0
+          },
+          "last_downloaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "FileListItemResponse": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          },
+          "original_filename": {
+            "type": "string"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer"
+          },
+          "context_key": {
+            "type": "string"
+          },
+          "uploaded_by": {
+            "type": "string",
+            "description": "API key ID or user ID of the uploader."
+          },
+          "uploaded_by_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Name of the API key used."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "download_count": {
+            "type": "integer",
+            "default": 0
+          },
+          "last_downloaded_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FileDeleteResponse": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          },
+          "deleted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "total_pages": {
+            "type": "integer"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ERROR"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuccessResponse_APIKeyCreated": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/APIKeyCreatedResponse"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuccessResponse_APIKeyDetail": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/APIKeyDetailResponse"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuccessResponse_APIKeyList": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/APIKeyListItemResponse"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuccessResponse_APIKeySimpleList": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/APIKeySimpleResponse"
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuccessResponse_APIKeyStatusChange": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/APIKeyStatusChangeResponse"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuccessResponse_Context": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ContextResponse"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuccessResponse_ContextList": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContextListItemResponse"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuccessResponse_FileUpload": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/FileUploadResponse"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuccessResponse_FileDownload": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/FileDownloadResponse"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuccessResponse_FileMetadata": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/FileMetadataResponse"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuccessResponse_FileList": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FileListItemResponse"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SuccessResponse_FileDelete": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/FileDeleteResponse"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       }
     }
   }

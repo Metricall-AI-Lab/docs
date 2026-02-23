@@ -1,97 +1,76 @@
 ---
 title: "Introduction"
-description: "Welcome to the new home for your documentation"
+description: "Uplint is the trust layer for incoming data. Understand, verify, and trust every file before it enters your system."
 ---
 
-## Setting up
+## What is Uplint?
 
-Get your documentation site up and running in minutes.
+Uplint is the trust layer for incoming data. It sits between the outside world and your infrastructure, ensuring that every piece of data is understood, verified, and trusted before it enters your system.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+Every cloud has storage, compute, and queues — but nothing that understands what's *inside* incoming files. S3 stores bytes. It doesn't know if those bytes form a blank PDF, a renamed executable, or a restaurant receipt uploaded as a medical claim.
 
-## Make it yours
+Uplint fills that gap with a single API call.
 
-Design a docs site that looks great and empowers your users.
+## What Uplint does
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Structural Validation" icon="shield-check">
+    Verifies the internal binary structure matches the declared format. Catches corrupt files, polyglot files, and format spoofing.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Content Intelligence" icon="brain">
+    Detects blank documents, empty spreadsheets, single-color images, and whitespace-only text files.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Threat Detection" icon="virus-slash">
+    Scans every upload for malware signatures, embedded scripts, and exploit patterns using ClamAV.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Context-Aware Rules" icon="sliders">
+    Define per-context pipelines with allowed extensions, size limits, rate limits, and storage quotas.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## How it works
 
-Everything you need to create world-class documentation.
+```javascript
+const result = await uplint.validate(file, {
+  context: "patient-records",
+  scan: true,
+  detectBlanks: true,
+});
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+if (!result.trusted) {
+  // result.reasons: "blank_document" | "content_mismatch" | "threat_detected" | ...
+}
+```
 
-## Need inspiration?
+One call triggers the full trust pipeline: structural validation, content analysis, blank detection, threat scanning, and audit logging.
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+## Key concepts
+
+<CardGroup cols={2}>
+  <Card title="File Contexts" icon="folder-open" href="/concepts/file-contexts">
+    Upload pipelines with per-context validation rules.
+  </Card>
+  <Card title="Trust Pipeline" icon="diagram-project" href="/concepts/trust-pipeline">
+    The validation stages every file passes through.
+  </Card>
+  <Card title="Content Intelligence" icon="magnifying-glass" href="/concepts/content-intelligence">
+    How Uplint understands what's inside your files.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Full REST API documentation with examples.
+  </Card>
+</CardGroup>
+
+## Quick links
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get up and running in 5 minutes.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    API keys, scopes, and security.
+  </Card>
+  <Card title="Dashboard" icon="gauge" href="https://app.uplint.dev">
+    Manage contexts, keys, and files.
+  </Card>
+</CardGroup>

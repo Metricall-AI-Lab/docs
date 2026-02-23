@@ -1,0 +1,73 @@
+---
+title: "Content Intelligence"
+description: "How Uplint goes beyond metadata to understand what's actually inside your files."
+---
+
+## Beyond metadata
+
+Traditional file validation checks metadata: the extension, the MIME type, the file size. These are labels chosen by the sender. They tell you what the file *claims* to be — not what it *actually is*.
+
+Content intelligence is Uplint's ability to look beyond metadata and understand the substance of what's entering your system.
+
+## Three levels of intelligence
+
+### Structural truth
+
+Is this file what it claims to be? Uplint inspects the internal binary structure to verify the format is genuine.
+
+A file that says it's a PDF but has an executable header isn't confused — it's deceptive. Corrupt headers, polyglot files, format spoofing — structural intelligence catches what no label check can.
+
+**What it catches:**
+- Executables renamed as PDFs
+- Polyglot files valid in multiple formats
+- MIME type spoofing
+- Corrupt or truncated files
+
+### Substantive reality
+
+Is there meaningful content inside? A PDF with zero readable words isn't a document. A spreadsheet with headers but zero data rows isn't a report. An image that's a single solid color isn't a photo.
+
+These files pass every traditional check — correct extension, valid MIME type, reasonable size — but they're worthless.
+
+**What it catches:**
+- Blank PDFs (zero readable words)
+- Empty spreadsheets (headers only, no data)
+- Single-color images
+- Whitespace-only text files
+
+### Semantic context (coming soon)
+
+Does this data belong where it was sent? This is the most powerful level of content intelligence.
+
+When your infrastructure understands content semantically, it can verify that a document uploaded to `insurance_claims` is actually a claim form, a prescription, or a medical bill — not a random receipt, a personal photo, or someone's homework.
+
+Modern vision models and multimodal AI make this feasible at API speed. Your infrastructure can understand what data *is*, the way a human reviewer would — but on every submission, instantly.
+
+## Why this matters
+
+In regulated industries, content-blind systems create real risk:
+
+- A **blank PDF** accepted as a patient record creates a gap in the audit trail
+- A **renamed executable** in a document upload is a security incident waiting to happen
+- A **vacation selfie** accepted as a medical claim means your system can't tell the difference between valid and invalid submissions
+
+Every downstream system inherits the trust decisions made at the boundary. If your boundary is content-blind, your entire stack is content-blind.
+
+## How to enable it
+
+Content intelligence is configured per file context:
+
+```json
+{
+  "context_key": "patient_reports",
+  "reject_blank_files": true,
+  "reject_corrupt_files": true,
+  "scan_for_viruses": true
+}
+```
+
+- **`reject_blank_files: true`** — Enables substantive content analysis
+- **`reject_corrupt_files: true`** — Enables structural validation
+- **`scan_for_viruses: true`** — Enables threat detection
+
+All three are enabled by default when creating a new context.

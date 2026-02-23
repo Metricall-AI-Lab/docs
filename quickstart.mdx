@@ -1,80 +1,132 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Get started with the Uplint API in under 5 minutes."
 ---
 
-## Get started in three steps
+## 1. Create an account
 
-Get your documentation site running locally and make your first customization.
+Sign up at [app.uplint.dev](https://app.uplint.dev/signup) to get access to the dashboard. The free tier includes 500 uploads/month with full platform access.
 
-### Step 1: Set up your local environment
+## 2. Get your API key
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+Navigate to **Settings → API Keys** in the dashboard, or create one via the API:
 
-### Step 2: Deploy your changes
+```bash
+curl -X POST https://api.uplint.dev/api/v1/api-keys \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My First Key",
+    "scopes": ["upload", "download", "metadata"]
+  }'
+```
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+The response includes your API key — **store it securely**, it's only shown once:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "api_key_id": "6612f1a2c3b4d5e6f7890123",
+    "api_key": "ul_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+    "name": "My First Key",
+    "scopes": ["upload", "download", "metadata"]
+  }
+}
+```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+## 3. Create a file context
 
-### Step 3: Go live
+File contexts define your upload pipelines — what file types are allowed, size limits, and which validations to run:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```bash
+curl -X POST https://api.uplint.dev/api/v1/contexts \
+  -H "Authorization: Bearer ul_live_a1b2c3d4..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "context_key": "patient_reports",
+    "display_name": "Patient Reports",
+    "description": "Medical reports uploaded by patients",
+    "allowed_extensions": ["pdf", "png", "jpg", "jpeg"],
+    "max_file_size_mb": 25,
+    "reject_blank_files": true,
+    "reject_corrupt_files": true,
+    "scan_for_viruses": true
+  }'
+```
+
+## 4. Upload a file
+
+Upload a file into your context. Uplint validates it against all configured rules before storing it:
+
+```bash
+curl -X POST https://api.uplint.dev/api/v1/files/upload \
+  -H "Authorization: Bearer ul_live_a1b2c3d4..." \
+  -F "file=@report.pdf" \
+  -F "context=patient_reports" \
+  -F 'metadata={"department": "radiology", "patient_id": "P-12345"}'
+```
+
+**If the file passes all checks:**
+
+```json
+{
+  "status": "SUCCESS",
+  "message": "File uploaded",
+  "data": {
+    "file_id": "6612f1a2c3b4d5e6f7890abc",
+    "original_filename": "report.pdf",
+    "content_type": "application/pdf",
+    "size_bytes": 843776,
+    "context_key": "patient_reports"
+  }
+}
+```
+
+**If the file fails validation** (blank, corrupt, virus, wrong extension, oversized):
+
+```json
+{
+  "status": "ERROR",
+  "message": "File rejected: blank document detected",
+  "errors": ["blank_document"]
+}
+```
+
+## 5. Retrieve your file
+
+Generate a pre-signed download URL:
+
+```bash
+curl https://api.uplint.dev/api/v1/files/FILE_ID \
+  -H "Authorization: Bearer ul_live_a1b2c3d4..."
+```
+
+```json
+{
+  "status": "SUCCESS",
+  "data": {
+    "file_id": "6612f1a2c3b4d5e6f7890abc",
+    "download_url": "https://s3.amazonaws.com/...",
+    "expires_in_seconds": 300,
+    "original_filename": "report.pdf"
+  }
+}
+```
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Authentication" icon="key" href="/authentication">
+    Learn about API key scopes and security best practices.
+  </Card>
+  <Card title="File Contexts" icon="folder-open" href="/concepts/file-contexts">
+    Understand how to configure upload pipelines.
+  </Card>
+  <Card title="Trust Pipeline" icon="diagram-project" href="/concepts/trust-pipeline">
+    See every validation stage your files pass through.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Explore the full API with request/response examples.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

@@ -1,33 +1,100 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: "API Reference"
+description: "Complete reference for the Uplint REST API — files, contexts, and API keys."
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+## Base URL
 
-## Welcome
+```
+https://api.uplint.dev
+```
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
+For local development:
 
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+```
+http://localhost:8000
+```
 
 ## Authentication
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+All endpoints require authentication via the `Authorization` header. Pass an API key or JWT token:
+
+```bash
+Authorization: Bearer ul_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
+```
+
+See the [Authentication guide](/authentication) for details on API key scopes, lifecycle, and security best practices.
+
+## Response format
+
+All responses follow a consistent envelope format:
+
+**Success:**
 
 ```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
+{
+  "status": "SUCCESS",
+  "message": "Human-readable description",
+  "data": { ... },
+  "timestamp": "2026-02-10T12:00:00Z"
+}
 ```
+
+**Error:**
+
+```json
+{
+  "status": "ERROR",
+  "message": "Human-readable error description",
+  "errors": ["Specific error detail"],
+  "timestamp": "2026-02-10T12:00:00Z"
+}
+```
+
+**Paginated lists** include a `pagination` object:
+
+```json
+{
+  "status": "SUCCESS",
+  "data": [ ... ],
+  "pagination": {
+    "page": 1,
+    "page_size": 20,
+    "total": 47,
+    "total_pages": 3
+  }
+}
+```
+
+## API groups
+
+<CardGroup cols={3}>
+  <Card title="Files" icon="file" href="/api-reference/files/upload">
+    Upload, list, download, inspect, and delete files.
+  </Card>
+  <Card title="File Contexts" icon="folder-open" href="/api-reference/contexts/create">
+    Create and manage upload pipelines with validation rules.
+  </Card>
+  <Card title="API Keys" icon="key" href="/api-reference/api-keys/create">
+    Create, manage, and revoke scoped API keys.
+  </Card>
+</CardGroup>
+
+## Rate limits
+
+API-level rate limits apply per tenant. Context-level rate limits apply per file context and are configured when creating or updating a context.
+
+When a rate limit is exceeded, the API returns a `429` status code.
+
+## Status codes
+
+| Code | Description |
+|------|-------------|
+| `200` | Success |
+| `201` | Resource created |
+| `400` | Bad request — validation failed or file rejected |
+| `401` | Unauthorized — missing or invalid credentials |
+| `404` | Resource not found |
+| `409` | Conflict — resource already exists or invalid state transition |
+| `422` | Validation error — request body failed schema validation |
+| `429` | Rate limit exceeded |

@@ -1,0 +1,80 @@
+---
+title: "File Contexts"
+description: "File contexts define upload pipelines with per-context validation rules, allowed extensions, size limits, and more."
+---
+
+## What are file contexts?
+
+A **file context** is an upload pipeline. It defines the rules that every file must pass before being accepted into your system. Think of it as a named configuration for a specific type of upload.
+
+For example, a healthcare application might have:
+
+- `patient_reports` — PDFs and images up to 25MB, blank detection on, virus scanning on
+- `profile_photos` — JPEG and PNG only, max 5MB, no blank detection needed
+- `insurance_claims` — PDFs only, max 50MB, all validations enabled
+
+Each context is identified by a unique `context_key` in snake_case (e.g., `patient_reports`). The key is immutable after creation.
+
+## Context configuration
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `context_key` | string | Unique identifier in snake_case. Immutable. |
+| `display_name` | string | Human-readable name shown in the dashboard. |
+| `description` | string | Optional description of what this context is for. |
+| `allowed_extensions` | string[] | Allowed file extensions (e.g., `["pdf", "png"]`). Empty array allows all. |
+| `max_file_size_mb` | integer | Maximum file size in MB (1–500). Default: 10. |
+| `reject_blank_files` | boolean | Reject files detected as blank or placeholder content. Default: `true`. |
+| `reject_corrupt_files` | boolean | Reject files that fail structural integrity checks. Default: `true`. |
+| `scan_for_viruses` | boolean | Scan files for malware using ClamAV. Default: `true`. |
+| `upload_rate_limit` | object | Optional rate limit (`max_uploads` per `window_seconds`). |
+| `storage_quota_mb` | integer | Optional storage quota in MB. `null` for unlimited. |
+
+## Example: Creating a context
+
+```bash
+curl -X POST https://api.uplint.dev/api/v1/contexts \
+  -H "Authorization: Bearer ul_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "context_key": "insurance_claims",
+    "display_name": "Insurance Claims",
+    "description": "Documents submitted with insurance claims",
+    "allowed_extensions": ["pdf"],
+    "max_file_size_mb": 50,
+    "reject_blank_files": true,
+    "reject_corrupt_files": true,
+    "scan_for_viruses": true,
+    "upload_rate_limit": {
+      "max_uploads": 100,
+      "window_seconds": 60
+    },
+    "storage_quota_mb": 10240
+  }'
+```
+
+## Rate limiting
+
+Each context can have its own upload rate limit, defined by:
+
+- `max_uploads` — Maximum number of uploads allowed within the time window (1–10,000)
+- `window_seconds` — The time window in seconds (1–3,600)
+
+If a rate limit is exceeded, the upload returns a `429` status with a clear error message.
+
+## Storage quotas
+
+Set `storage_quota_mb` to cap the total storage used by files in a context. When the quota is reached, new uploads are rejected until files are deleted or the quota is increased.
+
+Check current usage via the `storage_used_bytes` field in context details.
+
+## Context status
+
+Contexts can be **active** or **inactive**. Inactive contexts reject all new uploads but still allow access to existing files.
+
+## Best practices
+
+- **One context per use case.** Don't share a context between unrelated upload types. A medical records context should have different rules than a profile photo context.
+- **Enable blank detection.** Most upload pipelines benefit from rejecting blank files. It catches a surprisingly common class of data quality issues.
+- **Set rate limits.** Protect your system from upload floods, especially on public-facing endpoints.
+- **Use storage quotas.** Prevent runaway storage costs by setting reasonable limits per context.

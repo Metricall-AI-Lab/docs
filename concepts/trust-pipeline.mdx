@@ -1,0 +1,124 @@
+---
+title: "Trust Pipeline"
+description: "Every file uploaded through Uplint passes through a multi-stage validation pipeline before being accepted."
+---
+
+## Overview
+
+When a file is uploaded to Uplint, it doesn't just get stored. It passes through a multi-stage trust pipeline configured by the file context. Each stage can accept or reject the file, and every decision is logged for audit purposes.
+
+## Pipeline stages
+
+Every upload passes through these stages in order:
+
+### 1. Extension check
+
+The file's extension is compared against the context's `allowed_extensions` list. If the list is empty, all extensions are allowed.
+
+**Rejects:** Files with extensions not in the allowed list.
+
+### 2. Size check
+
+The file's size is compared against the context's `max_file_size_mb` limit.
+
+**Rejects:** Files exceeding the size limit.
+
+### 3. Rate limit check
+
+If the context has an `upload_rate_limit` configured, the system checks whether the upload would exceed the allowed rate.
+
+**Rejects:** Uploads that exceed the rate limit (returns `429`).
+
+### 4. Storage quota check
+
+If the context has a `storage_quota_mb` configured, the system checks whether accepting this file would exceed the quota.
+
+**Rejects:** Uploads that would push storage over the quota.
+
+### 5. Structural validation
+
+The file's internal binary structure is inspected to verify it matches the declared format. A file claiming to be a PDF must have valid PDF structure. A JPEG must have the correct markers.
+
+**Rejects:** Corrupt files, files with mismatched structure, and polyglot files (files valid in multiple formats simultaneously).
+
+**Controlled by:** `reject_corrupt_files`
+
+### 6. Content analysis (blank detection)
+
+The file's actual content is analyzed to determine if it contains meaningful data:
+
+| File Type | What's checked |
+|-----------|---------------|
+| PDF | Readable text content across all pages |
+| Spreadsheets | Data rows beyond headers |
+| Images | Visual variance (not single-color) |
+| Text files | Non-whitespace content |
+
+**Rejects:** Blank documents, empty spreadsheets, single-color images, whitespace-only text files.
+
+**Controlled by:** `reject_blank_files`
+
+### 7. Virus scanning
+
+The file is scanned for malware signatures, embedded scripts, and exploit patterns using ClamAV.
+
+**Rejects:** Files containing known malware or suspicious patterns.
+
+**Controlled by:** `scan_for_viruses`
+
+### 8. Storage
+
+If all checks pass, the file is stored in the configured storage backend with full metadata, checksum, and audit trail.
+
+## Pipeline flow
+
+```
+Upload Request
+    │
+    ├─ Extension check ──── REJECT (400)
+    ├─ Size check ────────── REJECT (400)
+    ├─ Rate limit check ──── REJECT (429)
+    ├─ Storage quota check ── REJECT (400)
+    ├─ Structural validation ── REJECT (400)
+    ├─ Blank detection ────── REJECT (400)
+    ├─ Virus scanning ─────── REJECT (400)
+    │
+    └─ ✓ Store file ──────── SUCCESS (201)
+```
+
+## Rejection responses
+
+When a file is rejected, the response includes the reason:
+
+```json
+{
+  "status": "ERROR",
+  "message": "File rejected: blank document detected",
+  "errors": ["blank_document"]
+}
+```
+
+Common rejection reasons:
+
+| Reason | Description |
+|--------|-------------|
+| `invalid_extension` | File extension not in the allowed list |
+| `file_too_large` | File exceeds the context's size limit |
+| `rate_limit_exceeded` | Too many uploads in the time window |
+| `quota_exceeded` | Context storage quota would be exceeded |
+| `corrupt_file` | File structure doesn't match declared format |
+| `blank_document` | File contains no meaningful content |
+| `virus_detected` | Malware or suspicious content found |
+
+## Audit logging
+
+Every pipeline decision is logged with:
+
+- Timestamp
+- File metadata (name, size, type, checksum)
+- Context key
+- Uploader identity (API key or user)
+- Each stage's pass/fail result
+- Rejection reason (if applicable)
+
+This creates a complete audit trail for compliance and debugging.

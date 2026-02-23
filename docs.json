@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Uplint",
   "colors": {
     "primary": "#16A34A",
     "light": "#07C983",
@@ -14,55 +14,62 @@
         "tab": "Guides",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
               "index",
               "quickstart",
-              "development"
+              "authentication"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
-          },
-          {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "concepts/file-contexts",
+              "concepts/trust-pipeline",
+              "concepts/content-intelligence"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Overview",
             "pages": [
               "api-reference/introduction"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Files",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api-reference/files/upload",
+              "api-reference/files/list",
+              "api-reference/files/download",
+              "api-reference/files/metadata",
+              "api-reference/files/delete"
+            ]
+          },
+          {
+            "group": "File Contexts",
+            "pages": [
+              "api-reference/contexts/create",
+              "api-reference/contexts/list",
+              "api-reference/contexts/get",
+              "api-reference/contexts/update"
+            ]
+          },
+          {
+            "group": "API Keys",
+            "pages": [
+              "api-reference/api-keys/create",
+              "api-reference/api-keys/list",
+              "api-reference/api-keys/list-simple",
+              "api-reference/api-keys/get",
+              "api-reference/api-keys/update",
+              "api-reference/api-keys/revoke",
+              "api-reference/api-keys/enable",
+              "api-reference/api-keys/disable"
             ]
           }
         ]
@@ -71,13 +78,18 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
+          "anchor": "Website",
+          "href": "https://uplint.dev",
+          "icon": "globe"
+        },
+        {
+          "anchor": "Dashboard",
+          "href": "https://app.uplint.dev",
+          "icon": "gauge"
         },
         {
           "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
+          "href": "https://uplint.dev/dispatches",
           "icon": "newspaper"
         }
       ]
@@ -91,32 +103,28 @@
     "links": [
       {
         "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "href": "mailto:support@uplint.dev"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "href": "https://app.uplint.dev"
     }
   },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
+  "api": {
+    "baseUrl": "https://api.uplint.dev",
+    "auth": {
+      "method": "bearer",
+      "name": "Authorization"
+    }
   },
+  "openapi": ["/api-reference/openapi.json"],
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "x": "https://x.com/uplintdev",
+      "github": "https://github.com/uplint",
+      "linkedin": "https://linkedin.com/company/uplint"
     }
   }
 }
